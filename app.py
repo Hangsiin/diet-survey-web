@@ -61,6 +61,10 @@ survey_categories = {
             {
                 'text': '하루 식사 횟수가 일정한가요?',
                 'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+            },
+            {
+                'text': '현재 식습관에서 가장 개선하고 싶은 점은 무엇인가요?',
+                'type': 'text'
             }
         ]
     },
@@ -86,6 +90,14 @@ survey_categories = {
             {
                 'text': '다이어트의 목표가 미용 목적인가요?',
                 'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+            },
+            {
+                'text': '당신이 생각하는 이상적인 체형을 자세히 설명해주세요.',
+                'type': 'text'
+            },
+            {
+                'text': '고객님이 목표로하는 체중이 몇 kg인지 알려주세요.',
+                'type': 'text'
             }
         ]
     },
@@ -111,6 +123,10 @@ survey_categories = {
             {
                 'text': '다이어트 정보를 자주 찾아보시나요?',
                 'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+            },
+            {
+                'text': '지금까지 시도해본 다이어트 방법들과 그 결과에 대해 설명해주세요.',
+                'type': 'text'
             }
         ]
     }
@@ -136,18 +152,22 @@ def save_to_csv(user_name, survey_date, survey_data, analysis_result):
         flat_data[f'{question_id}_answer'] = answer  # Adjusted based on data structure
     
     # 분석 결과 추가
-    for section_name in ['personality', 'psychological_state', 'current_status', 'potential_risks']:
+    for section_name in ['personality', 'psychological_state', 'current_status', 'potential_risks', 'treatment_scores', 'overall_analysis']:
         section_data = getattr(analysis_result, section_name, None)
         if section_data:
             flat_data[f'{section_name}_title'] = section_data.title
             flat_data[f'{section_name}_description'] = section_data.description
             
             # Handle lists within section_data
-            for attr_name in ['traits', 'key_points', 'strengths', 'challenges', 'risk_factors', 'recommendations']:
-                attr_value = getattr(section_data, attr_name, None)
-                if attr_value:
-                    for i, item in enumerate(attr_value):
-                        flat_data[f'{section_name}_{attr_name}_{i+1}'] = item
+            if section_name == 'treatment_scores':
+                flat_data[f'{section_name}_procedural_necessity'] = section_data.procedural_necessity
+                flat_data[f'{section_name}_surgical_necessity'] = section_data.surgical_necessity
+            else:
+                for attr_name in ['traits', 'key_points', 'strengths', 'challenges', 'risk_factors', 'recommendations']:
+                    attr_value = getattr(section_data, attr_name, None)
+                    if attr_value:
+                        for i, item in enumerate(attr_value):
+                            flat_data[f'{section_name}_{attr_name}_{i+1}'] = item
     
     # CSV 파일에 저장
     with open(csv_file, 'a', newline='', encoding='utf-8-sig') as f:
@@ -159,7 +179,6 @@ def save_to_csv(user_name, survey_date, survey_data, analysis_result):
         
         writer.writerow(flat_data)
     logging.info(f"Data saved to {csv_file} successfully.")
-
 
 # Pydantic models for structured output
 class Trait(BaseModel):
@@ -184,11 +203,24 @@ class PotentialRisks(BaseModel):
     risk_factors: List[str]
     recommendations: List[str]
 
+class Treatment_Scores(BaseModel):
+    title: str
+    description: str
+    procedural_necessity: int
+    surgical_necessity: int
+
+class OverallAnalysis(BaseModel):
+    title: str
+    description: str
+    overall_analysis: str
+
 class AnalysisResult(BaseModel):
     personality: Trait
     psychological_state: PsychologicalState
     current_status: CurrentStatus
     potential_risks: PotentialRisks
+    treatment_scores: Treatment_Scores
+    overall_analysis: OverallAnalysis
 
 @app.route('/')
 def index():
@@ -212,8 +244,23 @@ def category_select():
 @app.route('/survey', methods=['GET', 'POST'])
 def survey():
     if request.method == 'POST':
-        session['user_name'] = request.form.get('name')
-        session['survey_date'] = request.form.get('date')
+        name = request.form.get('name')
+        date = request.form.get('date')
+        age = request.form.get('age')
+        gender = request.form.get('gender')
+        height = request.form.get('height')
+        weight = request.form.get('weight')
+        
+        session['user_info'] = {
+            'name': name,
+            'date': date,
+            'age': age,
+            'gender': gender,
+            'height': height,
+            'weight': weight
+        }
+        session['user_name'] = name
+        session['survey_date'] = date
         return redirect(url_for('category_select'))
     
     if 'user_name' not in session:
@@ -223,19 +270,10 @@ def survey():
     if not category or category not in survey_categories:
         return redirect(url_for('category_select'))
     
-    # 설문 응답 저장소 초기화
-    if 'survey_responses' not in session:
-        session['survey_responses'] = {}
-    
-    # 진행 상황 초기화
-    if 'completed_categories' not in session:
-        session['completed_categories'] = []
-
-    return render_template('survey.html',
+    return render_template('survey.html', 
                          category=category,
-                         category_title=survey_categories[category]['title'],
                          questions=survey_categories[category]['questions'],
-                         completed_categories=session.get('completed_categories', []))
+                         category_title=survey_categories[category]['title'])
 
 @app.route('/save_category', methods=['POST'])
 def save_category():
@@ -283,11 +321,15 @@ def analyze_survey():
 
     try:
         data = session['survey_responses']
+        user_info = session.get('user_info', {})
 
         # Build the analysis prompt
         analysis_prompt = f"""
-        다음은 다이어트 심리 설문 응답입니다. 응답을 분석하여 결과를 제공해주세요.
-        모든 응답은 반드시 한국어로 작성해야합니다.
+        사용자 정보:
+        - 나이: {user_info.get('age')}세
+        - 성별: {'남성' if user_info.get('gender') == 'male' else '여성'}
+        - 키: {user_info.get('height')}cm
+        - 체중: {user_info.get('weight')}kg
 
         설문 응답:
         """
@@ -299,9 +341,16 @@ def analyze_survey():
 
         analysis_prompt += """
         위 응답을 바탕으로 사용자의 다이어트 성향을 분석해주세요.
-        식습관, 이상적인 몸매에 대한 생각, 그리고 다이어트 성향을 종합적으로 고려하여
-        personality, psychological_state, current_status, potential_risks 항목으로 구분하여 분석해주세요.
-        다시 한 번 강조하지만, 모든 응답은 반드시 한국어로 작성해야합니다.
+        1. 식습관, 이상적인 몸매에 대한 생각, 그리고 다이어트 성향을 종합적으로 고려하여
+        personality, psychological_state, current_status, potential_risks, treatment_scores, overall_analysis 항목으로 구분하여 분석해주세요.
+        2. treatment_scores의 경우, 0~100의 정수를 사용해야합니다.
+        3. 상담자의 답변을 봤을 때, 상담자가 매우 건강한 상태가 아니라면, 가급적이면 시술 필요도와 수술 필요도를 높게 설정하세요.
+        overall_analysis에서는 treatment_scores에 대한 분석을 반드시 포함해야합니다.
+        4. 말투의 경우, '고객님'을 주어로 사용하고, 친절하고 부드럽게 작성하세요.
+        5. 다시 한 번 강조하지만, 모든 응답은 반드시 한국어로 작성해야합니다.
+        6. 말투의 경우, '고객님'을 주어로 사용하고, 친절하고 부드럽게 작성하세요.
+
+        이제 시작하세요.
         """
 
         completion = client.beta.chat.completions.parse(
@@ -319,6 +368,8 @@ def analyze_survey():
 
         result = completion.choices[0].message.parsed
 
+        print(result)
+
         # Save results to CSV
         if 'user_name' in session and 'survey_date' in session:
             save_to_csv(session['user_name'], session['survey_date'], data, result)
@@ -330,14 +381,18 @@ def analyze_survey():
                     "personality": result.personality.model_dump(),
                     "psychological_state": result.psychological_state.model_dump(),
                     "current_status": result.current_status.model_dump(),
-                    "potential_risks": result.potential_risks.model_dump()
+                    "potential_risks": result.potential_risks.model_dump(),
+                    "treatment_scores": result.treatment_scores.model_dump(),
+                    "overall_analysis": result.overall_analysis.model_dump()
                 }
             else:
                 result_dict = {
                     "personality": result.personality.dict(),
                     "psychological_state": result.psychological_state.dict(),
                     "current_status": result.current_status.dict(),
-                    "potential_risks": result.potential_risks.dict()
+                    "potential_risks": result.potential_risks.dict(),
+                    "treatment_scores": result.treatment_scores.dict(),
+                    "overall_analysis": result.overall_analysis.dict()
                 }
             
             # Store the result in session

@@ -66,6 +66,70 @@
             </div>
         </div>
 
+        <!-- Treatment Scores Section -->
+        <div class="bg-white rounded-lg shadow-lg p-8 transform hover:scale-[1.02] transition-transform duration-200">
+            <h3 class="text-2xl font-bold text-purple-900 mb-4" id="treatmentTitle"></h3>
+            <p class="text-gray-700 mb-6" id="treatmentDescription"></p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- 시술 필요도 -->
+                <div class="bg-purple-50 rounded-lg p-6">
+                    <h4 class="text-xl font-semibold text-purple-700 mb-4">시술 필요도</h4>
+                    <div class="relative pt-1">
+                        <div class="flex mb-2 items-center justify-between">
+                            <div class="text-right">
+                                <span id="proceduralScore" class="text-3xl font-bold text-purple-600">0</span>
+                                <span class="text-purple-600 font-semibold">/100</span>
+                            </div>
+                        </div>
+                        <div class="overflow-hidden h-3 mb-4 text-xs flex rounded bg-purple-200">
+                            <div id="proceduralScoreBar" 
+                                class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 bg-purple-500" 
+                                style="width: 0%">
+                            </div>
+                        </div>
+                        <div id="proceduralLevel" class="text-sm text-purple-600 font-medium"></div>
+                    </div>
+                </div>
+                <!-- 수술 필요도 -->
+                <div class="bg-purple-50 rounded-lg p-6">
+                    <h4 class="text-xl font-semibold text-purple-700 mb-4">수술 필요도</h4>
+                    <div class="relative pt-1">
+                        <div class="flex mb-2 items-center justify-between">
+                            <div class="text-right">
+                                <span id="surgicalScore" class="text-3xl font-bold text-purple-600">0</span>
+                                <span class="text-purple-600 font-semibold">/100</span>
+                            </div>
+                        </div>
+                        <div class="overflow-hidden h-3 mb-4 text-xs flex rounded bg-purple-200">
+                            <div id="surgicalScoreBar" 
+                                class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 bg-purple-500" 
+                                style="width: 0%">
+                            </div>
+                        </div>
+                        <div id="surgicalLevel" class="text-sm text-purple-600 font-medium"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overall Analysis Section -->
+        <div class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-lg shadow-lg p-8 transform hover:scale-[1.02] transition-transform duration-200">
+            <h2 class="text-3xl font-bold text-indigo-900 mb-6 flex items-center">
+                <svg class="h-8 w-8 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <span id="overallTitle"></span>
+            </h2>
+            <div class="space-y-6">
+                <div class="bg-white bg-opacity-60 backdrop-blur-sm rounded-lg p-6 shadow-sm">
+                    <p class="text-gray-800 text-lg leading-relaxed" id="overallDescription"></p>
+                </div>
+                <div class="bg-white bg-opacity-60 backdrop-blur-sm rounded-lg p-6 shadow-sm">
+                    <p class="text-gray-800 text-lg leading-relaxed whitespace-pre-line" id="overallAnalysis"></p>
+                </div>
+            </div>
+        </div>
+
         <!-- Return to Survey Button -->
         <div class="text-center mt-12">
             <a href="/" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
@@ -80,8 +144,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get result data from server-side template
     const resultData = {{ analysis_result | safe }};
 
+    // Update treatment scores section
+    document.getElementById('treatmentTitle').textContent = '시술 및 수술 필요성 점수';
+    document.getElementById('treatmentDescription').textContent = resultData.treatment_scores.description;
+
+    // Update overall analysis section
+    document.getElementById('overallTitle').textContent = 'AI 종합 진단 분석';
+    document.getElementById('overallDescription').textContent = resultData.overall_analysis.description;
+    document.getElementById('overallAnalysis').textContent = resultData.overall_analysis.overall_analysis;
+
+    // 시술 필요도 업데이트
+    const proceduralScore = resultData.treatment_scores.procedural_necessity;
+    document.getElementById('proceduralScore').textContent = proceduralScore;
+    document.getElementById('proceduralScoreBar').style.width = `${proceduralScore}%`;
+    
+    // 수술 필요도 업데이트
+    const surgicalScore = resultData.treatment_scores.surgical_necessity;
+    document.getElementById('surgicalScore').textContent = surgicalScore;
+    document.getElementById('surgicalScoreBar').style.width = `${surgicalScore}%`;
+
+    // 필요도 레벨 텍스트 설정
+    function getScoreLevel(score) {
+        if (score >= 80) return '매우 높음';
+        if (score >= 60) return '높음';
+        if (score >= 40) return '보통';
+        if (score >= 20) return '낮음';
+        return '매우 낮음';
+    }
+
+    document.getElementById('proceduralLevel').textContent = `필요도 수준: ${getScoreLevel(proceduralScore)}`;
+    document.getElementById('surgicalLevel').textContent = `필요도 수준: ${getScoreLevel(surgicalScore)}`;
+
     // Update personality section
-    document.getElementById('personalityTitle').textContent = resultData.personality.title;
+    document.getElementById('personalityTitle').textContent = '성향 분석 결과';
     document.getElementById('personalityDescription').textContent = resultData.personality.description;
     document.getElementById('personalityTraits').innerHTML = resultData.personality.traits.map(trait => 
         `<div class="flex items-start space-x-3">
@@ -93,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ).join('');
 
     // Update psychological state section
-    document.getElementById('psychStateTitle').textContent = resultData.psychological_state.title;
+    document.getElementById('psychStateTitle').textContent = '심리적 상태 분석 결과';
     document.getElementById('psychStateDescription').textContent = resultData.psychological_state.description;
     document.getElementById('psychStatePoints').innerHTML = resultData.psychological_state.key_points.map(point => 
         `<div class="flex items-start space-x-3">
@@ -105,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ).join('');
 
     // Update current status section
-    document.getElementById('statusTitle').textContent = resultData.current_status.title;
+    document.getElementById('statusTitle').textContent = '현재 상태 분석 결과';
     document.getElementById('statusDescription').textContent = resultData.current_status.description;
     document.getElementById('statusStrengths').innerHTML = resultData.current_status.strengths.map(strength => 
         `<div class="flex items-start space-x-3">
@@ -125,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ).join('');
 
     // Update potential risks section
-    document.getElementById('risksTitle').textContent = resultData.potential_risks.title;
+    document.getElementById('risksTitle').textContent = '잠재적 위험 요소';
     document.getElementById('risksDescription').textContent = resultData.potential_risks.description;
     document.getElementById('riskFactors').innerHTML = resultData.potential_risks.risk_factors.map(factor => 
         `<div class="flex items-start space-x-3">
