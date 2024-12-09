@@ -3,7 +3,7 @@
 {% block content %}
 <div class="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto px-4 py-8">
-        <!-- 진행 상황 표시 -->
+        <!-- Progress Indicator -->
         <div class="mb-8">
             <div class="flex justify-between items-center">
                 <div class="text-sm text-gray-600">
@@ -49,22 +49,57 @@
                             required
                         ></textarea>
                     </div>
-                    {% else %}
-                    {% set outer_loop = loop %}
-                    {% for choice in question.choices %}
-                    <div class="flex items-center">
-                        <input type="radio" 
-                               id="q{{ outer_loop.index }}_{{ loop.index }}"
-                               name="question{{ outer_loop.index }}"
-                               value="{{ choice }}"
-                               required
-                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300">
-                        <label for="q{{ outer_loop.index }}_{{ loop.index }}" 
-                               class="ml-3 block text-sm font-medium text-gray-700">
-                            {{ choice }}
-                        </label>
+                    {% elif question.get('type') == 'checkbox' %}
+                    <div class="space-y-2">
+                        {% set outer_loop = loop %}
+                        {% for choice in question.choices %}
+                        <div class="flex items-center">
+                            <input type="checkbox" 
+                                   id="q{{ outer_loop.index }}_{{ loop.index }}"
+                                   name="question{{ outer_loop.index }}"
+                                   value="{{ choice }}"
+                                   class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                   onchange="toggleOtherInput(this)">
+                            <label for="q{{ outer_loop.index }}_{{ loop.index }}" 
+                                   class="ml-3 block text-sm font-medium text-gray-700">
+                                {{ choice }}
+                            </label>
+                            {% if choice.startswith('기타') %}
+                            <input type="text"
+                                   id="other_q{{ outer_loop.index }}_{{ loop.index }}"
+                                   name="other_question{{ outer_loop.index }}"
+                                   class="ml-3 hidden shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-64 sm:text-sm border-gray-300 rounded-md"
+                                   placeholder="기타 내용을 입력해주세요">
+                            {% endif %}
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                    {% else %}
+                    <div class="space-y-2">
+                        {% set outer_loop = loop %}
+                        {% for choice in question.choices %}
+                        <div class="flex items-center">
+                            <input type="radio" 
+                                   id="q{{ outer_loop.index }}_{{ loop.index }}"
+                                   name="question{{ outer_loop.index }}"
+                                   value="{{ choice }}"
+                                   required
+                                   class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                   onchange="toggleOtherInput(this)">
+                            <label for="q{{ outer_loop.index }}_{{ loop.index }}" 
+                                   class="ml-3 block text-sm font-medium text-gray-700">
+                                {{ choice }}
+                            </label>
+                            {% if choice.startswith('기타') %}
+                            <input type="text"
+                                   id="other_q{{ outer_loop.index }}_{{ loop.index }}"
+                                   name="other_question{{ outer_loop.index }}"
+                                   class="ml-3 hidden shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-64 sm:text-sm border-gray-300 rounded-md"
+                                   placeholder="기타 내용을 입력해주세요">
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -109,8 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         console.log('Form submitted');
         
-        // Check if all questions are answered
-        const formData = new FormData(form);
+        // Collect responses
         const responses = getResponses();
         
         if (responses.length === 0) {
@@ -166,12 +200,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function getResponses() {
-    const formData = new FormData(document.getElementById('surveyForm'));
-    const answers = [];
-    
-    // 모든 질문에 대해 순회
-    document.querySelectorAll('.bg-white').forEach((questionDiv, index) => {
-        // 질문 텍스트 가져오기
+    const form = document.getElementById('surveyForm');
+    const responses = [];
+
+    // Iterate over each question
+    form.querySelectorAll('.bg-white').forEach((questionDiv, index) => {
         const questionElement = questionDiv.querySelector('h3');
         if (!questionElement) {
             console.error('Question element not found for index:', index);
@@ -179,18 +212,54 @@ function getResponses() {
         }
         
         const questionText = questionElement.textContent.split('.').slice(1).join('.').trim();
-        const answer = formData.get(`question${index + 1}`);
+        const questionName = `question${index + 1}`;
+        const inputs = form.querySelectorAll(`[name="${questionName}"]`);
+        
+        let answer = null;
+        
+        // Determine the type of question
+        const firstInput = inputs[0];
+        if (firstInput.type === 'checkbox') {
+            answer = [];
+            inputs.forEach(input => {
+                if (input.checked) {
+                    answer.push(input.value);
+                }
+            });
+            // Remove empty strings (in case of 기타)
+            answer = answer.filter(a => a !== '');
+        } else if (firstInput.type === 'radio') {
+            const selected = form.querySelector(`[name="${questionName}"]:checked`);
+            if (selected) {
+                answer = selected.value;
+            }
+        } else {
+            // Text input
+            const textarea = form.querySelector(`[name="${questionName}"]`);
+            if (textarea && textarea.value.trim() !== '') {
+                answer = textarea.value.trim();
+            }
+        }
         
         if (answer) {
-            answers.push({
-                question: questionText,
-                answer: answer
+            responses.push({
+                'question': questionText,
+                'answer': answer
             });
         }
     });
-    
-    console.log('Collected responses:', answers);
-    return answers;
+
+    console.log('Collected responses:', responses);
+    return responses;
+}
+
+function toggleOtherInput(input) {
+    const otherInput = input.parentNode.querySelector('input[type="text"]');
+    if (input.checked && otherInput) {
+        otherInput.classList.remove('hidden');
+    } else if (otherInput) {
+        otherInput.classList.add('hidden');
+    }
 }
 </script>
 {% endblock %}

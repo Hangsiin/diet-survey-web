@@ -15,119 +15,232 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)  # 세션을 위한 시크릿 키 설정
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
-# 다이어트 관련 설문 문항들
-all_questions = [
-    "식사 시간이 불규칙한 편인가요?",
-    "스트레스를 받으면 과식하는 경향이 있나요?",
-    "운동할 때 즐거움을 느끼시나요?",
-    "식사 계획을 세우는 것이 어렵게 느껴지시나요?",
-    "야식을 자주 먹는 편인가요?",
-    "체중 감량에 실패한 경험이 많으신가요?",
-    "식사를 빨리 하는 편인가요?",
-    "다이어트 중에 주변의 지지를 받고 계신가요?",
-    "음식을 통해 감정을 달래는 경향이 있나요?",
-    "규칙적인 운동 습관을 유지하기 어려우신가요?",
-    "식사량을 조절하는 것이 어렵나요?",
-    "체중 증가에 대한 불안감이 있으신가요?",
-    "식사를 거르는 경우가 자주 있나요?",
-    "다이어트에 대한 부정적인 경험이 있나요?",
-    "식사 후 죄책감을 느끼시나요?"
-]
-
-# 각 질문에 대한 선택지
-all_choices = [["전혀 아니다", "아니다", "보통이다", "그렇다", "매우 그렇다"]] * len(all_questions)
-
 # 설문 카테고리와 문항 정의
 survey_categories = {
     'habits': {
         'title': '식습관 및 활동',
         'questions': [
+            # 식습관 & 활동
             {
-                'text': '식사 시간이 불규칙한 편인가요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '하루에 식사를 몇 끼 정도 하시나요?',
+                'choices': ['하루 1끼', '하루 2끼', '하루 3끼', '4끼 이상', '불규칙하다']
             },
             {
-                'text': '스트레스를 받으면 음식으로 해소하는 편인가요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '평소 식사를 주로 어떤 방식으로 하시나요?',
+                'choices': [
+                    '집에서 직접 만들어 먹는다',
+                    '배달 음식 또는 포장 음식을 먹는다',
+                    '외식을 주로 한다',
+                    '간단히 간편식을 먹는다(예: 샌드위치, 컵라면 등)'
+                ]
             },
+            {
+                'text': '식사량은 보통 어느 정도인가요?',
+                'choices': [
+                    '항상 과식하는 편이다',
+                    '적당히 배부를 정도로 먹는다',
+                    '소식하거나 부족하게 먹는다',
+                    '식사량이 일정하지 않다'
+                ]
+            },
+            {
+                'text': '주로 어떤 종류의 음식을 자주 드시나요?',
+                'choices': [
+                    '탄수화물 위주의 식사(밥, 빵, 면 등)',
+                    '고기나 생선 중심의 단백질 식사',
+                    '채소나 샐러드 중심의 식사',
+                    '간편식이나 가공식품(인스턴트, 패스트푸드 등)',
+                    '달콤하거나 기름진 간식을 자주 먹는다'
+                ],
+                'type': 'checkbox'
+            },
+            {
+                'text': '다이어트 식단이 힘든이유가 무엇인가요?',
+                'type': 'text'
+            },
+            # 활동
             {
                 'text': '운동하는 것을 즐기시나요?',
                 'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
             },
             {
-                'text': '야식을 자주 먹는 편인가요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '운동의 필요성을 못느끼는 부분은 어떤것일까요?',
+                'choices': [
+                    '흥미가 없어서',
+                    '시간이 없어서',
+                    '체력이 없어서 또는 피곤해서',
+                    '아직 건강하기 때문에',
+                    '구지 내몸을 힘들게 하고 싶지 않아서'
+                ]
             },
             {
-                'text': '하루 식사 횟수가 일정한가요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '운동의 필요성을 느낀다면 어느부분 때문일까요?',
+                'choices': [
+                    '건강',
+                    '외모',
+                    '체력',
+                    '지식',
+                    '많이먹기 위해서'
+                ]
             },
             {
-                'text': '현재 식습관에서 가장 개선하고 싶은 점은 무엇인가요?',
-                'type': 'text'
-            }
+                'text': '본인이 제일 선호하는 운동은?',
+                'choices': [
+                    '유산소 (걷기)',
+                    '스트레칭 (간단한 움직임, 몸풀기)',
+                    '근력 (헬스, 웨이트)',
+                    '필라테스, 요가',
+                    '기타'
+                ]
+            },
+            {
+                'text': '운동할 때 어떤 부분이 제일 힘든가요?',
+                'choices': [
+                    '매일 해야 하는부분 때문에',
+                    '힘들어서',
+                    '혼자서 할때',
+                    '운동을 하고 나면 근육통이 너무 심해서',
+                    '눈에 띄는 변화가 없어서'
+                ]
+            },
         ]
     },
     'ideal_body': {
         'title': '나의 이상적인 몸매',
         'questions': [
             {
-                'text': '마른 체형이 이상적이라고 생각하시나요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '현재 몸에서 가장 변화시키고 싶은 부위는 어디인가요?',
+                'choices': ['복부', '허벅지', '팔뚝', '엉덩이', '전체적으로 체형을 개선하고 싶다']
             },
             {
-                'text': '근육질의 몸매가 좋다고 생각하시나요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '몸매 관리에서 가장 중점적으로 원하는 결과는 무엇인가요?',
+                'choices': ['군살 제거', '근육량 증가', '체지방 감소', '체형 교정']
             },
             {
-                'text': '현재 체형에 만족하시나요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '운동을 통해 만들고 싶은 몸매는 어떤 스타일인가요?',
+                'choices': [
+                    '날씬하고 가늘게 보이는 몸매',
+                    '글래머러스하고 볼륨감 있는 몸매',
+                    '복근이 드러나는 강한 인상',
+                    '유연하고 균형 잡힌 몸매'
+                ]
             },
             {
-                'text': '체중보다 체형이 더 중요하다고 생각하시나요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '몸매 관리를 통해 얻고 싶은 가장 큰 변화는 무엇인가요?',
+                'choices': [
+                    '옷이 잘 어울리는 체형',
+                    '체중계 숫자의 감소',
+                    '활동적인 라이프스타일에 적합한 몸매',
+                    '스스로 자존감을 높일 수 있는 몸매'
+                ]
             },
             {
-                'text': '다이어트의 목표가 미용 목적인가요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '자신의 체형과 관련해 가장 스트레스를 받는 부분은 무엇인가요?',
+                'choices': [
+                    '특정 부위의 군살',
+                    '전반적으로 균형이 맞지 않는 체형',
+                    '근육 부족으로 탄탄하지 않음',
+                    '기타'
+                ],
+                'type': 'checkbox'
             },
             {
-                'text': '당신이 생각하는 이상적인 체형을 자세히 설명해주세요.',
-                'type': 'text'
+                'text': '이상적인 몸매를 유지하기 위해 어느 정도의 노력을 하실 수 있나요?',
+                'choices': [
+                    '매일 꾸준한 운동 가능',
+                    '주 3~4회 운동 가능',
+                    '시간 여유에 따라 탄력적으로 가능',
+                    '운동보다는 식단 위주로 관리하고 싶다'
+                ]
             },
-            {
-                'text': '고객님이 목표로하는 체중이 몇 kg인지 알려주세요.',
-                'type': 'text'
-            }
         ]
     },
     'diet_tendency': {
         'title': '나의 다이어트 성향',
         'questions': [
             {
-                'text': '다이어트 실패 경험이 많은 편인가요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '과거에 다이어트를 시도한 경험이 있으신가요? 있다면 어떤 방법을 사용하셨나요?',
+                'choices': [
+                    '식단 조절',
+                    '운동',
+                    '약물(보조제 포함)',
+                    '수술(예: 지방 흡입)',
+                    '기타'
+                ],
+                'type': 'checkbox'
             },
             {
-                'text': '체중 변화에 민감한 편인가요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '다이어트를 진행하면서 가장 어려웠던 점은 무엇인가요?',
+                'choices': [
+                    '꾸준한 실천',
+                    '시간 부족',
+                    '식단 유지',
+                    '외식 또는 회식 등 환경적 요인',
+                    '기타'
+                ],
+                'type': 'checkbox'
             },
             {
-                'text': '다이어트를 시작하면 스트레스를 많이 받나요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '다이어트 실패 원인으로 가장 크게 작용한 요소는 무엇이라고 생각하시나요?',
+                'choices': [
+                    '의지 부족',
+                    '잘못된 다이어트 방법',
+                    '전문가의 부재',
+                    '주변 환경(가족, 직장 등)',
+                    '기타'
+                ],
+                'type': 'checkbox'
             },
             {
-                'text': '주변 사람들의 체형 변화에 관심이 많은가요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '평소에 식습관이나 생활 패턴에서 다이어트를 방해하는 요인은 무엇인가요?',
+                'choices': [
+                    '불규칙한 식사',
+                    '스트레스성 폭식',
+                    '잦은 외식 및 회식',
+                    '야식 습관',
+                    '기타'
+                ],
+                'type': 'checkbox'
             },
             {
-                'text': '다이어트 정보를 자주 찾아보시나요?',
-                'choices': ['매우 그렇다', '그렇다', '보통이다', '아니다', '전혀 아니다']
+                'text': '현재 체중 관리 목표를 이루는 데 가장 필요한 지원은 무엇이라고 생각하시나요?',
+                'choices': [
+                    '맞춤형 식단 제공',
+                    '체계적인 운동 코칭',
+                    '지속적인 동기부여와 상담',
+                    '전문 의료 지원',
+                    '기타'
+                ]
             },
             {
-                'text': '지금까지 시도해본 다이어트 방법들과 그 결과에 대해 설명해주세요.',
-                'type': 'text'
-            }
+                'text': '체중 관리 프로그램을 선택할 때 가장 중요하게 생각하는 요소는 무엇인가요?',
+                'choices': [
+                    '효과',
+                    '비용',
+                    '편리성(시간 및 거리)',
+                    '전문성'
+                ]
+            },
+            {
+                'text': '체중 관리 서비스를 이용하기 위해 한 달에 지출할 수 있는 금액은 어느 정도인가요?',
+                'choices': [
+                    '30만원 이하',
+                    '100만원 이상',
+                    '300만원 이하',
+                    '비용상관없음'
+                ]
+            },
+            {
+                'text': '과거에 유료 체중 관리 서비스를 이용해 본 경험이 있다면, 그 비용은 어느 정도였나요?',
+                'choices': [
+                    '10만원 이하',
+                    '100만원 이상',
+                    '300만원 이하',
+                    '1000만원 이상',
+                    '이용한 적 없음'
+                ],
+                'type': 'radio'
+            },
         ]
     }
 }
@@ -270,46 +383,51 @@ def survey():
     if not category or category not in survey_categories:
         return redirect(url_for('category_select'))
     
+    # 세션에서 completed_categories 가져오기
+    completed_categories = session.get('completed_categories', [])
+    
     return render_template('survey.html', 
-                         category=category,
-                         questions=survey_categories[category]['questions'],
-                         category_title=survey_categories[category]['title'])
+                           category=category,
+                           questions=survey_categories[category]['questions'],
+                           category_title=survey_categories[category]['title'],
+                           completed_categories=completed_categories)
+
 
 @app.route('/save_category', methods=['POST'])
 def save_category():
-    if 'user_name' not in session:
-        return jsonify({"error": "로그인이 필요합니다."}), 401
-
     try:
         data = request.get_json()
         category = data.get('category')
         responses = data.get('responses')
-
+        
         if not category or not responses:
-            return jsonify({"error": "카테고리와 응답이 필요합니다."}), 400
-
-        # Initialize survey_responses in session if not exists
+            return jsonify({'status': 'error', 'error': 'Missing data'}), 400
+        
+        # Initialize completed_categories in session if it doesn't exist
+        if 'completed_categories' not in session:
+            session['completed_categories'] = []
+            
+        # Add the current category to completed_categories if not already present
+        if category not in session['completed_categories']:
+            completed_categories = session['completed_categories']
+            completed_categories.append(category)
+            session['completed_categories'] = completed_categories
+            
+        # Store responses in session
         if 'survey_responses' not in session:
             session['survey_responses'] = {}
         
-        # Initialize completed_categories if not exists
-        if 'completed_categories' not in session:
-            session['completed_categories'] = []
-
-        # Save responses for the category
         session['survey_responses'][category] = responses
         
-        # Mark category as completed if not already marked
-        if category not in session['completed_categories']:
-            session['completed_categories'].append(category)
+        # If all categories are completed, prepare for analysis
+        all_categories = ['habits', 'ideal_body', 'diet_tendency']
+        if all(cat in session['completed_categories'] for cat in all_categories):
+            session['ready_for_analysis'] = True
         
-        session.modified = True
-
-        return jsonify({"status": "success"})
-
+        return jsonify({'status': 'success'})
     except Exception as e:
-        print(f"Error saving category: {str(e)}")
-        return jsonify({"error": "응답 저장 중 오류가 발생했습니다."}), 500
+        logging.error(f"Error in save_category: {str(e)}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 @app.route('/analyze_survey', methods=['GET', 'POST'])
 def analyze_survey():
@@ -345,10 +463,9 @@ def analyze_survey():
         personality, psychological_state, current_status, potential_risks, treatment_scores, overall_analysis 항목으로 구분하여 분석해주세요.
         2. treatment_scores의 경우, 0~100의 정수를 사용해야합니다.
         3. 상담자의 답변을 봤을 때, 상담자가 매우 건강한 상태가 아니라면, 가급적이면 시술 필요도와 수술 필요도를 높게 설정하세요.
-        overall_analysis에서는 treatment_scores에 대한 분석을 반드시 포함해야합니다.
-        4. 말투의 경우, '고객님'을 주어로 사용하고, 친절하고 부드럽게 작성하세요.
-        5. 다시 한 번 강조하지만, 모든 응답은 반드시 한국어로 작성해야합니다.
-        6. 말투의 경우, '고객님'을 주어로 사용하고, 친절하고 부드럽게 작성하세요.
+        4. overall_analysis에서는 treatment_scores에 대한 분석을 반드시 포함해야합니다.
+        5. 말투의 경우, '고객님'을 주어로 사용하고, 친절하고 부드럽게 작성하세요.
+        6. 다시 한 번 강조하지만, 모든 응답은 반드시 한국어로 작성해야합니다.
 
         이제 시작하세요.
         """

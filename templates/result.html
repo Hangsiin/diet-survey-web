@@ -4,8 +4,8 @@
 <div class="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto space-y-8">
         <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-indigo-900 mb-4">당신의 다이어트 성향 분석 결과</h1>
-            <p class="text-lg text-gray-600">AI가 분석한 당신만의 맞춤형 다이어트 컨설팅 결과입니다</p>
+            <h1 class="text-4xl font-bold text-indigo-900 mb-4">SLIM MIND 분석 결과</h1>
+            <p class="text-lg text-gray-600">AI가 분석한 고객님만의 맞춤형 다이어트 컨설팅 결과입니다</p>
         </div>
 
         <!-- Personality Section -->
@@ -131,13 +131,19 @@
         </div>
 
         <!-- Return to Survey Button -->
-        <div class="text-center mt-12">
-            <a href="/" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <div class="text-center mt-12 space-y-4">
+            <button onclick="downloadScreenshot()" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                결과 스크린샷 저장하기
+            </button>
+            <a href="/" class="block inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 새로운 설문 시작하기
             </a>
         </div>
     </div>
 </div>
+
+<!-- html2canvas library -->
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -239,5 +245,21 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>`
     ).join('');
 });
+
+// Screenshot and download function
+function downloadScreenshot() {
+    const element = document.querySelector('.min-h-screen');
+    html2canvas(element).then(canvas => {
+        // 현재 날짜와 시간을 파일명에 포함
+        const date = new Date();
+        const fileName = `다이어트_성향분석_결과_${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}.png`;
+        
+        // 캔버스를 이미지로 변환하고 다운로드
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+}
 </script>
 {% endblock %}
