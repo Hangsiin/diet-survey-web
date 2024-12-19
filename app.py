@@ -537,6 +537,14 @@ def download_survey():
     if 'survey_responses' not in session:
         return redirect(url_for('index'))
     
+    # Get user info for filename
+    user_info = session.get('user_info', {})
+    client_name = user_info.get('name', '무명')
+    survey_date = user_info.get('date', datetime.now().strftime('%Y-%m-%d'))
+    
+    # Create filename
+    filename = f'설문결과_{client_name}_{survey_date}.xlsx'
+    
     # Create an Excel file in memory
     output = BytesIO()
     workbook = xlsxwriter.Workbook(output)
@@ -613,7 +621,7 @@ def download_survey():
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='survey_results.xlsx'
+        download_name=filename
     )
 
 if __name__ == '__main__':
