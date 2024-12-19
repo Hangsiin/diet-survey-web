@@ -1,8 +1,10 @@
 import os
 import json
 import csv
+import xlsxwriter
+from io import BytesIO
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from openai import OpenAI
 from pydantic import BaseModel
 from typing import List
@@ -529,6 +531,90 @@ def show_result():
     if 'user_name' not in session or 'analysis_result' not in session:
         return redirect(url_for('category_select'))
     return render_template('result.html', analysis_result=session.get('analysis_result'))
+
+@app.route('/download_survey')
+def download_survey():
+    if 'survey_responses' not in session:
+        return redirect(url_for('index'))
+    
+    # Create an Excel file in memory
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet()
+    
+    # Add formats
+    header_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#E6E6FA',
+        'border': 1
+    })
+    
+    content_format = workbook.add_format({
+        'text_wrap': True,
+        'border': 1,
+        'valign': 'top'
+    })
+    
+    # Set column widths
+    worksheet.set_column('A:A', 15)  # 카테고리
+    worksheet.set_column('B:B', 40)  # 질문
+    worksheet.set_column('C:C', 30)  # 답변
+    
+    # Write user info
+    row = 0
+    user_info = session.get('user_info', {})
+    
+    worksheet.merge_range('A1:C1', '기본 정보', header_format)
+    row += 1
+    
+    info_items = [
+        ('이름', user_info.get('name', '')),
+        ('날짜', user_info.get('date', '')),
+        ('나이', user_info.get('age', '')),
+        ('성별', '남성' if user_info.get('gender') == 'male' else '여성'),
+        ('키', user_info.get('height', '')),
+        ('체중', user_info.get('weight', ''))
+    ]
+    
+    for label, value in info_items:
+        worksheet.write(row, 0, label, header_format)
+        worksheet.merge_range(row, 1, row, 2, value, content_format)
+        row += 1
+    
+    row += 1  # Add empty row
+    
+    # Write headers for survey responses
+    headers = ['카테고리', '질문', '답변']
+    for col, header in enumerate(headers):
+        worksheet.write(row, col, header, header_format)
+    row += 1
+    
+    # Write survey data
+    survey_responses = session['survey_responses']
+    for category, responses in survey_responses.items():
+        category_title = survey_categories[category]['title']
+        
+        for response in responses:
+            answer = response['answer']
+            if isinstance(answer, list):
+                answer = ', '.join(answer)
+            
+            worksheet.write(row, 0, category_title, content_format)
+            worksheet.write(row, 1, response['question'], content_format)
+            worksheet.write(row, 2, answer, content_format)
+            row += 1
+    
+    workbook.close()
+    
+    # Prepare the file for download
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='survey_results.xlsx'
+    )
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

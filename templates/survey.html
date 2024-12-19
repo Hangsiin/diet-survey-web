@@ -223,15 +223,31 @@ function getResponses() {
             answer = [];
             inputs.forEach(input => {
                 if (input.checked) {
-                    answer.push(input.value);
+                    if (input.value.startsWith('기타')) {
+                        const otherInput = input.parentNode.querySelector('input[type="text"]');
+                        if (otherInput && otherInput.value.trim()) {
+                            answer.push(`기타: ${otherInput.value.trim()}`);
+                        }
+                    } else {
+                        answer.push(input.value);
+                    }
                 }
             });
-            // Remove empty strings (in case of 기타)
+            // Remove empty strings
             answer = answer.filter(a => a !== '');
         } else if (firstInput.type === 'radio') {
             const selected = form.querySelector(`[name="${questionName}"]:checked`);
             if (selected) {
-                answer = selected.value;
+                if (selected.value.startsWith('기타')) {
+                    const otherInput = selected.parentNode.querySelector('input[type="text"]');
+                    if (otherInput && otherInput.value.trim()) {
+                        answer = `기타: ${otherInput.value.trim()}`;
+                    } else {
+                        answer = selected.value;
+                    }
+                } else {
+                    answer = selected.value;
+                }
             }
         } else {
             // Text input
